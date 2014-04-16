@@ -263,19 +263,13 @@ module Squeel
         end
 
         def collapse_wheres(arel, wheres)
-          wheres = Array(wheres)
-          binaries = wheres.grep(Arel::Nodes::Binary)
-
-          groups = binaries.group_by {|b| [b.class, b.left]}
-
-          groups.each do |_, bins|
-            arel.where(Arel::Nodes::And.new(bins))
-          end
-
-          (wheres - binaries).each do |where|
+          predicates = wheres.map do |where|
+            next where if ::Arel::Nodes::Equality === where
             where = Arel.sql(where) if String === where
-            arel.where(Arel::Nodes::Grouping.new(where))
+            Arel::Nodes::Grouping.new(where)
           end
+    
+          arel.where(Arel::Nodes::And.new(predicates)) if predicates.present?
         end
 
         def find_equality_predicates(nodes)
